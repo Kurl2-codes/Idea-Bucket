@@ -76,7 +76,7 @@ const IdeaCardUI: React.FC<IdeaCardUIProps> = ({
         </h3>
 
         <p className="text-sm text-slate-400 mb-4 line-clamp-3">
-          {idea.content}
+          <div dangerouslySetInnerHTML={{ __html: idea.content || '' }} className="rich-text-content" />
         </p>
 
         <div className="mt-auto">
@@ -103,8 +103,8 @@ const IdeaCardUI: React.FC<IdeaCardUIProps> = ({
               <button
                 onClick={(e) => handleAction(e, () => onToggleShare(idea.id))}
                 className={`text-[10px] px-3 py-1 rounded-lg transition-colors font-semibold ${idea.isShared
-                    ? 'bg-slate-700 hover:bg-slate-600 text-slate-300'
-                    : 'bg-[#fd7912] hover:bg-[#fd7912]/80 text-white shadow-[#fd7912]/10'
+                  ? 'bg-slate-700 hover:bg-slate-600 text-slate-300'
+                  : 'bg-[#fd7912] hover:bg-[#fd7912]/80 text-white shadow-[#fd7912]/10'
                   }`}
                 title={idea.isShared ? 'Make private' : `Share with ${idea.authorDepartment}`}
               >

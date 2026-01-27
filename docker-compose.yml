@@ -2,6 +2,7 @@ version: '3.8'
 
 services:
   frontend:
+    container_name: ideabucket-frontend
     build:
       context: ./frontend
       dockerfile: Dockerfile
@@ -10,12 +11,15 @@ services:
     volumes:
       - ./frontend:/app
       - /app/node_modules
+    env_file:
+      - .env
     environment:
       - VITE_API_URL=http://localhost:8000
     depends_on:
       - backend
 
   backend:
+    container_name: ideabucket-backend
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -23,19 +27,15 @@ services:
       - "8000:8000"
     volumes:
       - ./backend:/app
-    environment:
-      - MONGODB_URL=mongodb://mongodb:27017
-      - GEMINI_API_KEY=${GEMINI_API_KEY}
-      - S3_ACCESS_KEY=${S3_ACCESS_KEY}
-      - S3_SECRET_KEY=${S3_SECRET_KEY}
-      - S3_BUCKET_NAME=${S3_BUCKET_NAME}
-      - S3_ENDPOINT=${S3_ENDPOINT}
-      - S3_REGION=${S3_REGION}
+    env_file:
+      - .env
     depends_on:
       - mongodb
 
   mongodb:
+    container_name: ideabucket-mongodb
     image: mongo:latest
+
     ports:
       - "27017:27017"
     volumes:
