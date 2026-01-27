@@ -3,8 +3,10 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import IdeaInput from './components/idea-input/IdeaInput';
 import IdeaCard from './components/idea-card/IdeaCard';
 import AuthScreen from './components/auth/AuthScreen';
+import AdminDashboard from './components/admin/AdminDashboard';
 import { Idea, User, ViewMode, MainTab, Comment, SharePermission } from './types';
-import { analyzeIdea, getIdeas, toggleShare, deleteIdea, addComment, addReply } from './services/geminiService';
+
+import { analyzeIdea, getIdeas, toggleShare, deleteIdea, addComment, addReply, toggleCommentLike, updateIdea, updateShareLink } from './services/geminiService';
 
 const ImageSlideshow: React.FC<{ images: string[] }> = ({ images }) => {
   const [index, setIndex] = useState(0);
@@ -233,9 +235,9 @@ const App: React.FC = () => {
 
     // Check for shareable link in URL
     const urlParams = new URLSearchParams(window.location.search);
-    const shareId = urlParams.get('shareId');
-    if (shareId) {
-      // Logic to fetch shared idea could go here
+    const sId = urlParams.get('shareId');
+    if (sId) {
+      (window as any)._pendingShareId = sId; // Stashing globally for the fetch effect
     }
   }, []);
 
@@ -258,10 +260,32 @@ const App: React.FC = () => {
           tags: analysis.tags,
           createdAt: analysis.createdAt || Date.now(),
           connections: [],
-          comments: analysis.comments || []
+          comments: analysis.comments || [],
+          shareLinkId: analysis.shareLinkId,
+          sharePermission: analysis.sharePermission as SharePermission | undefined
         }));
         // Only update if ideas actually changed (deep check hard, but length check simple)
         setIdeas(mappedIdeas);
+
+        const pendingId = (window as any)._pendingShareId;
+        if (pendingId) {
+          const sharedIdea = mappedIdeas.find(i => i.shareLinkId === pendingId);
+          if (sharedIdea) {
+            setPreviewIdea(sharedIdea);
+
+            // Google Sheets-style: Auto-open editor if user has edit access
+            if (sharedIdea.userId === currentUser.id || sharedIdea.sharePermission === 'editor') {
+              setIsEditing(true);
+              setEditContent(sharedIdea.content);
+              setEditImages(sharedIdea.imageDatas || []);
+            }
+
+            delete (window as any)._pendingShareId;
+
+            // Optional: Clean up URL to keep it pretty
+            window.history.replaceState({}, document.title, window.location.pathname);
+          }
+        }
       }
     };
 
@@ -353,7 +377,7 @@ const App: React.FC = () => {
     }
   };
 
-  const handleGenerateShareLink = () => {
+  const handleGenerateShareLink = async () => {
     if (!previewIdea || !currentUser) return;
     const shareLinkId = Math.random().toString(36).substring(2, 15);
     const updatedIdea: Idea = {
@@ -361,15 +385,29 @@ const App: React.FC = () => {
       shareLinkId,
       sharePermission: 'viewer'
     };
-    setIdeas(prev => prev.map(i => i.id === previewIdea.id ? updatedIdea : i));
-    setPreviewIdea(updatedIdea);
+
+    try {
+      await updateShareLink(previewIdea.id, shareLinkId, 'viewer');
+      setIdeas(prev => prev.map(i => i.id === previewIdea.id ? updatedIdea : i));
+      setPreviewIdea(updatedIdea);
+    } catch (error) {
+      console.error("Failed to generate share link", error);
+    }
   };
 
-  const handleUpdateSharePermission = (perm: SharePermission) => {
+  const handleUpdateSharePermission = async (perm: SharePermission) => {
     if (!previewIdea) return;
     const updatedIdea: Idea = { ...previewIdea, sharePermission: perm };
-    setIdeas(prev => prev.map(i => i.id === previewIdea.id ? updatedIdea : i));
-    setPreviewIdea(updatedIdea);
+
+    try {
+      if (previewIdea.shareLinkId) {
+        await updateShareLink(previewIdea.id, previewIdea.shareLinkId, perm);
+      }
+      setIdeas(prev => prev.map(i => i.id === previewIdea.id ? updatedIdea : i));
+      setPreviewIdea(updatedIdea);
+    } catch (error) {
+      console.error("Failed to update share permission", error);
+    }
   };
 
   const handleCopyShareLink = () => {
@@ -400,33 +438,39 @@ const App: React.FC = () => {
     }
   };
 
-  const handleToggleLike = (commentId: string) => {
+  const handleToggleLike = async (commentId: string) => {
     if (!currentUser || !previewIdea) return;
 
-    const toggleLikeRecursive = (comments: Comment[]): Comment[] => {
-      return comments.map(c => {
-        if (c.id === commentId) {
-          const currentLikes = c.likes || [];
-          const alreadyLiked = currentLikes.includes(currentUser.id);
-          return {
-            ...c,
-            likes: alreadyLiked
-              ? currentLikes.filter(id => id !== currentUser.id)
-              : [...currentLikes, currentUser.id]
-          };
-        }
-        if (c.replies && c.replies.length > 0) {
-          return { ...c, replies: toggleLikeRecursive(c.replies) };
-        }
-        return c;
-      });
-    };
+    try {
+      await toggleCommentLike(previewIdea.id, commentId);
 
-    const updatedComments = toggleLikeRecursive(previewIdea.comments || []);
-    const updatedIdea = { ...previewIdea, comments: updatedComments };
+      const toggleLikeRecursive = (comments: Comment[]): Comment[] => {
+        return comments.map(c => {
+          if (c.id === commentId) {
+            const currentLikes = c.likes || [];
+            const alreadyLiked = currentLikes.includes(currentUser.id);
+            return {
+              ...c,
+              likes: alreadyLiked
+                ? currentLikes.filter(id => id !== currentUser.id)
+                : [...currentLikes, currentUser.id]
+            };
+          }
+          if (c.replies && c.replies.length > 0) {
+            return { ...c, replies: toggleLikeRecursive(c.replies) };
+          }
+          return c;
+        });
+      };
 
-    setIdeas(prev => prev.map(i => i.id === previewIdea.id ? updatedIdea : i));
-    setPreviewIdea(updatedIdea);
+      const updatedComments = toggleLikeRecursive(previewIdea.comments || []);
+      const updatedIdea = { ...previewIdea, comments: updatedComments };
+
+      setIdeas(prev => prev.map(i => i.id === previewIdea.id ? updatedIdea : i));
+      setPreviewIdea(updatedIdea);
+    } catch (error) {
+      console.error("Failed to toggle comment like", error);
+    }
   };
 
   const handleAddReply = async (e: React.FormEvent, parentId: string) => {
@@ -524,6 +568,9 @@ const App: React.FC = () => {
         type: editImages.length > 0 ? 'image' : 'text'
       };
 
+      // Persist to DB
+      await updateIdea(previewIdea.id, updatedIdea.content, updatedIdea.title, updatedIdea.category, updatedIdea.tags);
+
       setIdeas(prev => prev.map(i => i.id === previewIdea.id ? updatedIdea : i));
       setPreviewIdea(updatedIdea);
       setIsEditing(false);
@@ -566,11 +613,9 @@ const App: React.FC = () => {
       {/* Top Navigation */}
       <nav className="glass shrink-0 z-50 px-6 py-4 flex items-center justify-between border-b border-slate-800">
         <div className="flex items-center space-x-2">
-          <div className="bg-[#0c1422] p-2 rounded-lg border border-[#fd7912]/50">
-            <i className="fas fa-briefcase text-[#fd7912] text-xl"></i>
-          </div>
+          <img src="/ideabucket.png" alt="Idea Bucket Logo" className="w-16 h-16 object-contain group-hover:scale-105 transition-transform" />
           <h1 className="text-xl font-bold bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent hidden sm:block">
-            WorkFlow <span className="text-[#fd7912]">AI</span>
+            Idea <span className="text-[#fd7912]">Bucket</span>
           </h1>
         </div>
 
@@ -622,7 +667,18 @@ const App: React.FC = () => {
                     <i className="fas fa-th-large mr-3 text-lg"></i> Idea Repository
                   </button>
                 </li>
+                {currentUser.userLevel === 1 && (
+                  <li>
+                    <button
+                      onClick={() => setActiveTab('admin')}
+                      className={`w-full text-left px-4 py-3 rounded-xl transition-all text-sm font-bold flex items-center ${activeTab === 'admin' ? 'bg-[#fd7912] text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'}`}
+                    >
+                      <i className="fas fa-users-cog mr-3"></i> User Management
+                    </button>
+                  </li>
+                )}
               </ul>
+
             </section>
 
             {activeTab === 'workspace' && (
@@ -730,7 +786,10 @@ const App: React.FC = () => {
                 </div>
               )}
             </div>
+          ) : activeTab === 'admin' ? (
+            <AdminDashboard />
           ) : (
+
             <div className="animate-in fade-in duration-500">
               <div className="mb-8 flex items-center justify-between">
                 <div>
@@ -800,6 +859,11 @@ const App: React.FC = () => {
                 ) : (
                   <span className="text-[11px] uppercase tracking-[0.2em] font-black px-3 py-1.5 rounded-lg bg-slate-500/10 text-slate-400 border border-slate-500/20">
                     Private
+                  </span>
+                )}
+                {(previewIdea.userId === currentUser.id || previewIdea.sharePermission === 'editor') && (
+                  <span className="text-[11px] uppercase tracking-[0.2em] font-black px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                    Edit Access
                   </span>
                 )}
               </div>

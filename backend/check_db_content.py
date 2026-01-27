@@ -12,22 +12,15 @@ async def main():
         client = AsyncIOMotorClient(MONGO_URL)
         db = client[DB_NAME]
         
-        print("\n--- Users ---")
+        print("\n--- Users (Full) ---")
         async for user in db.users.find():
-            print(f"ID: {user.get('_id')}, Email: {user.get('email')}, Name: {user.get('name')}")
+            print(f"DEBUG USER: {user}")
 
-        print("\n--- Ideas ---")
+        print("\n--- Ideas (Raw) ---")
         count = 0
         async for idea in db.ideas.find():
             count += 1
-            _id = idea.get('_id')
-            user_id = idea.get('userId')
-            print(f"ID: {_id} (Type: {type(_id)}), UserId: {user_id}, Title: {idea.get('title')}, Shared: {idea.get('isShared')}")
-            comments = idea.get('comments', [])
-            if comments:
-                print(f"  - Comments: {len(comments)}")
-                for c in comments:
-                    print(f"    * {c.get('userName')}: {c.get('text')} (Replies: {len(c.get('replies', []))})")
+            print(f"DEBUG IDEA: {idea}")
         
         if count == 0:
             print("No ideas found.")
@@ -37,3 +30,4 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+

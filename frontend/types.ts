@@ -50,7 +50,10 @@ export interface User {
   name: string;
   email: string;
   department: string;
+  userLevel: number;
 }
 
+
 export type ViewMode = 'all' | 'mine' | 'shared';
-export type MainTab = 'capture' | 'workspace';
+export type MainTab = 'capture' | 'workspace' | 'admin';
+

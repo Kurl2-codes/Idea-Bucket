@@ -70,11 +70,11 @@ async def get_ideas(current_user: dict = Depends(get_current_user)):
     ideas = await cursor.to_list(length=100)
     
     # Manually convert ObjectId to str for Pydantic serialization
+    print(f"DEBUG get_ideas: Found {len(ideas)} ideas for user {current_user['id']}")
     for idea in ideas:
         if "_id" in idea:
              idea["id"] = str(idea["_id"])
-
-
+        print(f"DEBUG idea {idea.get('id')}: {len(idea.get('comments', []))} comments")
              
     return ideas
 
@@ -150,12 +150,18 @@ async def add_comment(idea_id: str, comment: CommentCreate, current_user: dict =
     }
     
     # 3. Update Idea Document
-    await db.ideas.update_one(
+    result = await db.ideas.update_one(
         {"_id": idea["_id"]},
         {"$push": {"comments": new_comment}}
     )
     
+    if result.modified_count == 0:
+        print(f"DEBUG add_comment FAIL: Idea {idea['_id']} not updated")
+        raise HTTPException(status_code=500, detail="Failed to add comment to database")
+
+    print(f"DEBUG add_comment SUCCESS: pushed to {idea['_id']}, text={comment.text}")
     return new_comment
+
 
 @router.post("/ideas/{idea_id}/comments/{comment_id}/replies", response_model=Comment)
 async def add_reply(idea_id: str, comment_id: str, reply: CommentCreate, current_user: dict = Depends(get_current_user)):
@@ -184,42 +190,36 @@ async def add_reply(idea_id: str, comment_id: str, reply: CommentCreate, current
         "replies": [] 
     }
     
-    # Nested update in Mongo can be tricky with arrays. 
-    # Option 1: Find the comment and updated it via arrayFilters (cleanest for 1 level)
-    # Option 2: Recursive search/update (complex)
-    # Given the schema is nested, let's assume 1 level of nesting for now as per frontend types?
-    # Frontend types: Comment has replies: Comment[]. So it is recursive.
-    # MongoDB limitation: Updating deeply nested arrays is hard without knowing the path.
-    # Strategy: We will support 1 level of nesting for now (replies to root comments).
-    # If comment_id is a reply itself, we might want to flatten or disallow deep nesting 
-    # or just append to the parent's replies (Reddit style vs slack threading).
-    # Let's assume standard 1-level-deep threading (replying to a comment adds to its replies).
+    # Strategy: Find which root comment contains the target (either as itself or as a reply)
+    # Then update that root comment's replies array.
+    comments = idea.get("comments", [])
+    root_comment_index = -1
     
-    # Using arrayFilters to find the comment with id == comment_id
-    
+    for i, c in enumerate(comments):
+        if c.get("id") == comment_id:
+            root_comment_index = i
+            break
+        # Also check if it's one of this comment's replies
+        for r in c.get("replies", []):
+            if r.get("id") == comment_id:
+                root_comment_index = i
+                break
+        if root_comment_index != -1: break
+
+    if root_comment_index == -1:
+         print(f"DEBUG add_reply FAIL: Comment {comment_id} not found in idea {idea['_id']}")
+         raise HTTPException(status_code=404, detail="Parent comment not found")
+
     result = await db.ideas.update_one(
-        {
-            "_id": idea["_id"],
-            "comments.id": comment_id
-        },
-        {
-            "$push": {"comments.$.replies": new_reply}
-        }
+        {"_id": idea["_id"]},
+        {"$push": {f"comments.{root_comment_index}.replies": new_reply}}
     )
     
-    # If that failed, maybe it's a nested reply?
-    # For MVP, we only support replying to top-level comments effectively.
-    # If user replies to a reply, we could attach it to the parent or handle recursive search.
-    # Let's stick to 1-level for robustness first.
-    
     if result.modified_count == 0:
-        # Check if we are trying to reply to a reply (nested)
-        # Scan to find the parent of comment_id
-        # This is getting complex for a single update.
-        # Fallback: Read app logic. 
-        pass
+        raise HTTPException(status_code=500, detail="Failed to add reply to database")
 
     return new_reply
+
 
 @router.post("/ideas/{idea_id}/comments/{comment_id}/toggle-like")
 async def toggle_comment_like(idea_id: str, comment_id: str, current_user: dict = Depends(get_current_user)):
