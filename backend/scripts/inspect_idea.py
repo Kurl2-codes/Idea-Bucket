@@ -5,7 +5,7 @@ import json
 
 async def main():
     client = AsyncIOMotorClient("mongodb://127.0.0.1:27017")
-    db = client["mindcanvas_new_db"]
+    db = client["ideabucket"]
     
     # Try finding by string ID first, then by ObjectId
     idea_id = "6978100649bd659f4829a4c9"

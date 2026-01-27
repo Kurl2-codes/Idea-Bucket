@@ -1,12 +1,12 @@
 from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
-    PROJECT_NAME: str = "ShoreAI Backend"
+    PROJECT_NAME: str = "IdeaBucket Backend"
     API_V1_STR: str = "/api/v1"
     
     # MongoDB
     MONGODB_URL: str
-    DATABASE_NAME: str = "mindcanvas_new_db"
+    DATABASE_NAME: str = "ideabucket"
 
     # S3 Object Storage
     S3_ACCESS_KEY: str

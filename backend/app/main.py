@@ -29,7 +29,7 @@ app.include_router(images.router, prefix="/api/v1/images", tags=["images"])
 
 @app.get("/")
 async def root():
-    return {"message": "Welcome to ShoreAI Backend"}
+    return {"message": "Welcome to IdeaBucket Backend"}
 
 @app.get("/health")
 async def health_check():

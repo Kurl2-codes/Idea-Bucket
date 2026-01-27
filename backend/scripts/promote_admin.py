@@ -4,7 +4,8 @@ import sys
 
 async def promote_user(email):
     client = AsyncIOMotorClient("mongodb://127.0.0.1:27017")
-    db = client["mindcanvas_new_db"]
+    db = client["ideabucket"]
+
     
     result = await db.users.update_one(
         {"email": email},
