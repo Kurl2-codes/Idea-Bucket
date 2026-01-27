@@ -13,26 +13,26 @@ interface IdeaCardUIProps {
   handleAction: (e: React.MouseEvent, action: () => void) => void;
 }
 
-const IdeaCardUI: React.FC<IdeaCardUIProps> = ({ 
-  idea, 
-  isOwner, 
-  displayImage, 
-  categoryStyle, 
-  onDelete, 
-  onToggleShare, 
-  onPreview, 
-  handleAction 
+const IdeaCardUI: React.FC<IdeaCardUIProps> = ({
+  idea,
+  isOwner,
+  displayImage,
+  categoryStyle,
+  onDelete,
+  onToggleShare,
+  onPreview,
+  handleAction
 }) => {
   return (
-    <div 
+    <div
       onClick={() => onPreview(idea)}
       className="glass rounded-xl overflow-hidden flex flex-col h-full group transition-all hover:-translate-y-1 hover:shadow-xl hover:shadow-[#fd7912]/5 hover:border-[#fd7912]/40 cursor-pointer"
     >
       {displayImage && (
         <div className="relative h-48 overflow-hidden bg-slate-900">
-          <img 
-            src={displayImage} 
-            alt={idea.title} 
+          <img
+            src={displayImage}
+            alt={idea.title}
             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
           />
           {idea.imageDatas && idea.imageDatas.length > 1 && (
@@ -43,7 +43,7 @@ const IdeaCardUI: React.FC<IdeaCardUIProps> = ({
           <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
         </div>
       )}
-      
+
       <div className="p-5 flex flex-col flex-grow">
         <div className="flex justify-between items-start mb-3">
           <div className="flex flex-wrap gap-2">
@@ -61,7 +61,7 @@ const IdeaCardUI: React.FC<IdeaCardUIProps> = ({
             )}
           </div>
           {isOwner && (
-            <button 
+            <button
               onClick={(e) => handleAction(e, () => onDelete(idea.id))}
               className="text-slate-500 hover:text-red-400 transition-colors p-1"
               title="Remove from Workspace"
@@ -74,7 +74,11 @@ const IdeaCardUI: React.FC<IdeaCardUIProps> = ({
         <h3 className="text-lg font-bold text-slate-100 mb-2 leading-tight group-hover:text-[#fd7912] transition-colors">
           {idea.title}
         </h3>
-        
+
+        <p className="text-sm text-slate-400 mb-4 line-clamp-3">
+          {idea.content}
+        </p>
+
         <div className="mt-auto">
           <div className="flex flex-wrap gap-1.5 mb-4">
             {idea.tags.map(tag => (
@@ -96,13 +100,12 @@ const IdeaCardUI: React.FC<IdeaCardUIProps> = ({
             </div>
 
             {isOwner && (
-              <button 
+              <button
                 onClick={(e) => handleAction(e, () => onToggleShare(idea.id))}
-                className={`text-[10px] px-3 py-1 rounded-lg transition-colors font-semibold ${
-                  idea.isShared 
-                    ? 'bg-slate-700 hover:bg-slate-600 text-slate-300' 
+                className={`text-[10px] px-3 py-1 rounded-lg transition-colors font-semibold ${idea.isShared
+                    ? 'bg-slate-700 hover:bg-slate-600 text-slate-300'
                     : 'bg-[#fd7912] hover:bg-[#fd7912]/80 text-white shadow-[#fd7912]/10'
-                }`}
+                  }`}
                 title={idea.isShared ? 'Make private' : `Share with ${idea.authorDepartment}`}
               >
                 {idea.isShared ? (

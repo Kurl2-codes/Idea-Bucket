@@ -25,6 +25,10 @@ class S3Service:
             return None
             
     def upload_base64_image(self, base64_string: str, object_name: str) -> str:
+        if not self.s3_client:
+            print("S3 Client not initialized, skipping upload.")
+            return None
+            
         try:
             import base64
             from io import BytesIO
@@ -38,9 +42,10 @@ class S3Service:
             
             self.s3_client.upload_fileobj(file_obj, self.bucket_name, object_name)
             
-            # Construct URL manually or use presigned (public read needed for manual)
-            # Assuming public read or presigned access needed. For now returning generic URL pattern
-            return f"{settings.S3_ENDPOINT}/{self.bucket_name}/{object_name}"
+            # Return Proxy URL so frontend can load it even if bucket is private
+            # API_URL usually 8000. 
+            # We will create an endpoint /api/v1/images/{filename}
+            return f"/api/v1/images/{object_name}"
         except Exception as e:
             print(f"Error uploading base64: {e}")
             return None
@@ -54,6 +59,17 @@ class S3Service:
             return response
         except Exception as e:
             print(f"Error generating url: {e}")
+            return None
+
+    def download_file(self, object_name):
+        try:
+            from io import BytesIO
+            file_obj = BytesIO()
+            self.s3_client.download_fileobj(self.bucket_name, object_name, file_obj)
+            file_obj.seek(0)
+            return file_obj
+        except Exception as e:
+            print(f"Error downloading file: {e}")
             return None
 
 s3_service = S3Service()

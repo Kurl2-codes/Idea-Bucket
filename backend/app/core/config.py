@@ -5,8 +5,8 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
     
     # MongoDB
-    MONGODB_URL: str = "mongodb://localhost:27017"
-    DATABASE_NAME: str = "mindcanvas_db"
+    MONGODB_URL: str
+    DATABASE_NAME: str = "mindcanvas_new_db"
 
     # S3 Object Storage
     S3_ACCESS_KEY: str
@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     SECRET_KEY: str = "your-secret-key-keep-it-secret"
 
     class Config:
-        env_file = ".env"
+        env_file = (".env", "../.env")
         case_sensitive = True
 
 settings = Settings()

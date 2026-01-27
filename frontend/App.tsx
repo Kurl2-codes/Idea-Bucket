@@ -4,7 +4,7 @@ import IdeaInput from './components/idea-input/IdeaInput';
 import IdeaCard from './components/idea-card/IdeaCard';
 import AuthScreen from './components/auth/AuthScreen';
 import { Idea, User, ViewMode, MainTab, Comment, SharePermission } from './types';
-import { analyzeIdea } from './services/geminiService';
+import { analyzeIdea, getIdeas, toggleShare, deleteIdea, addComment, addReply } from './services/geminiService';
 
 const ImageSlideshow: React.FC<{ images: string[] }> = ({ images }) => {
   const [index, setIndex] = useState(0);
@@ -22,20 +22,20 @@ const ImageSlideshow: React.FC<{ images: string[] }> = ({ images }) => {
 
   return (
     <div className="relative rounded-[2rem] overflow-hidden border border-slate-800 shadow-2xl bg-slate-900 group aspect-video flex items-center justify-center">
-      <img 
-        src={images[index]} 
-        alt={`Image ${index + 1}`} 
-        className="max-w-full max-h-full object-contain transition-all duration-500" 
+      <img
+        src={images[index]}
+        alt={`Image ${index + 1}`}
+        className="max-w-full max-h-full object-contain transition-all duration-500"
       />
       {images.length > 1 && (
         <>
-          <button 
+          <button
             onClick={prev}
             className="absolute left-4 w-12 h-12 flex items-center justify-center rounded-full bg-black/40 text-white hover:bg-black/60 transition-all opacity-0 group-hover:opacity-100"
           >
             <i className="fas fa-chevron-left"></i>
           </button>
-          <button 
+          <button
             onClick={next}
             className="absolute right-4 w-12 h-12 flex items-center justify-center rounded-full bg-black/40 text-white hover:bg-black/60 transition-all opacity-0 group-hover:opacity-100"
           >
@@ -62,20 +62,20 @@ interface CommentItemProps {
   onAddReply: (e: React.FormEvent, id: string) => void;
 }
 
-const CommentItem: React.FC<CommentItemProps> = ({ 
-  comment, 
-  depth, 
-  currentUserId, 
-  replyingTo, 
-  setReplyingTo, 
-  replyText, 
-  setReplyText, 
-  onToggleLike, 
-  onAddReply 
+const CommentItem: React.FC<CommentItemProps> = ({
+  comment,
+  depth,
+  currentUserId,
+  replyingTo,
+  setReplyingTo,
+  replyText,
+  setReplyText,
+  onToggleLike,
+  onAddReply
 }) => {
   const [showAllReplies, setShowAllReplies] = useState(false);
   const hasLiked = comment.likes?.includes(currentUserId);
-  
+
   let indentationClass = '';
   if (depth === 0) {
     indentationClass = 'p-5 bg-slate-900/40 rounded-2xl border border-slate-800/50';
@@ -105,19 +105,19 @@ const CommentItem: React.FC<CommentItemProps> = ({
           {new Date(comment.createdAt).toLocaleDateString()}
         </span>
       </div>
-      
+
       <p className="text-sm text-slate-300 leading-relaxed mb-3">{comment.text}</p>
-      
+
       <div className="flex items-center space-x-4">
-        <button 
+        <button
           onClick={() => onToggleLike(comment.id)}
           className={`flex items-center space-x-1.5 text-[11px] font-bold transition-colors ${hasLiked ? 'text-rose-400' : 'text-slate-500 hover:text-slate-300'}`}
         >
           <i className={`${hasLiked ? 'fas' : 'far'} fa-heart`}></i>
           <span>{comment.likes?.length || 0}</span>
         </button>
-        
-        <button 
+
+        <button
           onClick={() => setReplyingTo(replyingTo === comment.id ? null : comment.id)}
           className="text-[11px] font-bold text-slate-500 hover:text-[#fd7912] transition-colors"
         >
@@ -129,14 +129,14 @@ const CommentItem: React.FC<CommentItemProps> = ({
       {replyingTo === comment.id && (
         <form onSubmit={(e) => onAddReply(e, comment.id)} className="mt-4">
           <div className="relative">
-            <input 
+            <input
               autoFocus
               value={replyText}
               onChange={(e) => setReplyText(e.target.value)}
               placeholder="Write a reply..."
               className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-2 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-[#fd7912]/50"
             />
-            <button 
+            <button
               type="submit"
               className="absolute right-2 top-1/2 -translate-y-1/2 text-[#fd7912] hover:text-[#fd7912]/80 font-bold text-[10px]"
             >
@@ -149,10 +149,10 @@ const CommentItem: React.FC<CommentItemProps> = ({
       {hasReplies && (
         <div className="mt-2">
           {displayReplies.map(reply => (
-            <CommentItem 
-              key={reply.id} 
-              comment={reply} 
-              depth={depth + 1} 
+            <CommentItem
+              key={reply.id}
+              comment={reply}
+              depth={depth + 1}
               currentUserId={currentUserId}
               replyingTo={replyingTo}
               setReplyingTo={setReplyingTo}
@@ -162,9 +162,9 @@ const CommentItem: React.FC<CommentItemProps> = ({
               onAddReply={onAddReply}
             />
           ))}
-          
+
           {hiddenCount > 0 && !showAllReplies && (
-            <button 
+            <button
               onClick={() => setShowAllReplies(true)}
               className="mt-3 text-[11px] font-bold text-[#fd7912] hover:text-[#fd7912]/80 flex items-center space-x-2 px-2 py-1 rounded hover:bg-[#fd7912]/5 transition-all"
             >
@@ -172,9 +172,9 @@ const CommentItem: React.FC<CommentItemProps> = ({
               <span>Show {hiddenCount} more replies</span>
             </button>
           )}
-          
+
           {showAllReplies && comment.replies && comment.replies.length > 2 && (
-            <button 
+            <button
               onClick={() => setShowAllReplies(false)}
               className="mt-3 text-[11px] font-bold text-slate-500 hover:text-slate-400 flex items-center space-x-2 px-2 py-1 rounded hover:bg-slate-800/50 transition-all"
             >
@@ -213,35 +213,60 @@ const App: React.FC = () => {
   const [isSharePopoverOpen, setIsSharePopoverOpen] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
 
+
+
+  // ... (in useEffect)
+
+  // 1. Initial Load Effect (Run ONCE)
   useEffect(() => {
-    const savedIdeasStr = localStorage.getItem('workflow_ideas_v3');
+    // Legacy: Clear old local storage to stop confusion
+    localStorage.removeItem('workflow_ideas_v3');
+
     const savedUserStr = localStorage.getItem('workflow_user');
-    
-    let initialIdeas: Idea[] = [];
-    if (savedIdeasStr) {
-      try {
-        initialIdeas = JSON.parse(savedIdeasStr);
-        setIdeas(initialIdeas);
-      } catch (e) { console.error(e); }
-    }
-    
     if (savedUserStr) {
       try {
-        setCurrentUser(JSON.parse(savedUserStr));
+        const user = JSON.parse(savedUserStr);
+        // Only set if actually different to avoid trivial re-renders
+        setCurrentUser(user);
       } catch (e) { console.error(e); }
     }
 
     // Check for shareable link in URL
     const urlParams = new URLSearchParams(window.location.search);
     const shareId = urlParams.get('shareId');
-    if (shareId && initialIdeas.length > 0) {
-      const idea = initialIdeas.find(i => i.shareLinkId === shareId);
-      if (idea) {
-        setPreviewIdea(idea);
-        setActiveTab('workspace');
-      }
+    if (shareId) {
+      // Logic to fetch shared idea could go here
     }
   }, []);
+
+  // 2. Data Fetching Effect (Run when currentUser changes)
+  useEffect(() => {
+    const fetchIdeas = async () => {
+      if (currentUser) {
+        const remoteIdeas = await getIdeas();
+        const mappedIdeas: Idea[] = remoteIdeas.map((analysis: any, index) => ({
+          id: analysis.id || analysis._id || Date.now().toString() + index,
+          userId: analysis.userId || currentUser.id,
+          authorName: analysis.authorName || currentUser.name,
+          authorDepartment: analysis.authorDepartment || currentUser.department,
+          isShared: analysis.isShared || false,
+          type: analysis.image_urls && analysis.image_urls.length > 0 ? 'image' : 'text',
+          content: analysis.content || "Fetched content",
+          imageDatas: analysis.image_urls,
+          title: analysis.title,
+          category: analysis.category,
+          tags: analysis.tags,
+          createdAt: analysis.createdAt || Date.now(),
+          connections: [],
+          comments: analysis.comments || []
+        }));
+        // Only update if ideas actually changed (deep check hard, but length check simple)
+        setIdeas(mappedIdeas);
+      }
+    };
+
+    fetchIdeas();
+  }, [currentUser]);
 
   useEffect(() => {
     localStorage.setItem('workflow_ideas_v3', JSON.stringify(ideas));
@@ -261,21 +286,23 @@ const App: React.FC = () => {
     if (!currentUser) return;
     setIsAnalyzing(true);
     try {
-      const analysis = await analyzeIdea(content, imageDatas);
-      
+      if (!currentUser) return;
+
+      const analysis = await analyzeIdea(content, imageDatas, currentUser);
+
       const newIdea: Idea = {
-        id: Date.now().toString(),
-        userId: currentUser.id,
-        authorName: currentUser.name,
-        authorDepartment: currentUser.department,
-        isShared: false,
+        id: analysis.id || Date.now().toString(),
+        userId: analysis.userId || currentUser.id,
+        authorName: analysis.authorName || currentUser.name,
+        authorDepartment: analysis.authorDepartment || currentUser.department,
+        isShared: analysis.isShared || false,
         type: imageDatas && imageDatas.length > 0 ? 'image' : 'text',
-        content,
-        imageDatas,
+        content: analysis.content || content,
+        imageDatas: analysis.image_urls || imageDatas, // Prefer URL from backend
         title: analysis.title,
         category: analysis.category,
         tags: analysis.tags,
-        createdAt: Date.now(),
+        createdAt: analysis.createdAt || Date.now(),
         connections: [],
         comments: []
       };
@@ -289,20 +316,40 @@ const App: React.FC = () => {
     }
   };
 
-  const handleDeleteIdea = (id: string) => {
+  const handleDeleteIdea = async (id: string) => {
+    if (!window.confirm("Are you sure you want to delete this idea?")) return;
+
+    // Optimistic update
     setIdeas(prev => prev.filter(i => i.id !== id));
     if (previewIdea?.id === id) setPreviewIdea(null);
+
+    try {
+      await deleteIdea(id);
+    } catch (error) {
+      console.error("Failed to delete", error);
+      // Could revert here if needed, but for now we trust the user won't mind refreshing if it fails
+    }
   };
 
-  const handleToggleShare = (id: string) => {
-    setIdeas(prev => prev.map(i => {
-      if (i.id === id && i.userId === currentUser?.id) {
-        return { ...i, isShared: !i.isShared };
+  const handleToggleShare = async (id: string) => {
+    try {
+      // Optimistic update
+      setIdeas(prev => prev.map(i => {
+        if (i.id === id && i.userId === currentUser?.id) {
+          return { ...i, isShared: !i.isShared };
+        }
+        return i;
+      }));
+
+      // Call Backend
+      await toggleShare(id);
+
+      if (previewIdea?.id === id) {
+        setPreviewIdea(prev => prev ? { ...prev, isShared: !prev.isShared } : null);
       }
-      return i;
-    }));
-    if (previewIdea?.id === id) {
-      setPreviewIdea(prev => prev ? { ...prev, isShared: !prev.isShared } : null);
+    } catch (error) {
+      console.error("Failed to share", error);
+      // Revert optimistic update if needed, but for prototype we just log
     }
   };
 
@@ -333,29 +380,24 @@ const App: React.FC = () => {
     setTimeout(() => setLinkCopied(false), 2000);
   };
 
-  const handleAddComment = (e: React.FormEvent) => {
+  const handleAddComment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentUser || !previewIdea || !commentText.trim()) return;
 
-    const newComment: Comment = {
-      id: Date.now().toString(),
-      userId: currentUser.id,
-      userName: currentUser.name,
-      userDepartment: currentUser.department,
-      text: commentText.trim(),
-      createdAt: Date.now(),
-      likes: [],
-      replies: []
-    };
+    try {
+      const newComment = await addComment(previewIdea.id, commentText.trim());
 
-    const updatedIdea = {
-      ...previewIdea,
-      comments: [...(previewIdea.comments || []), newComment]
-    };
+      const updatedIdea = {
+        ...previewIdea,
+        comments: [...(previewIdea.comments || []), newComment]
+      };
 
-    setIdeas(prev => prev.map(i => i.id === previewIdea.id ? updatedIdea : i));
-    setPreviewIdea(updatedIdea);
-    setCommentText('');
+      setIdeas(prev => prev.map(i => i.id === previewIdea.id ? updatedIdea : i));
+      setPreviewIdea(updatedIdea);
+      setCommentText('');
+    } catch (error) {
+      console.error("Failed to add comment", error);
+    }
   };
 
   const handleToggleLike = (commentId: string) => {
@@ -368,7 +410,7 @@ const App: React.FC = () => {
           const alreadyLiked = currentLikes.includes(currentUser.id);
           return {
             ...c,
-            likes: alreadyLiked 
+            likes: alreadyLiked
               ? currentLikes.filter(id => id !== currentUser.id)
               : [...currentLikes, currentUser.id]
           };
@@ -387,40 +429,35 @@ const App: React.FC = () => {
     setPreviewIdea(updatedIdea);
   };
 
-  const handleAddReply = (e: React.FormEvent, parentId: string) => {
+  const handleAddReply = async (e: React.FormEvent, parentId: string) => {
     e.preventDefault();
     if (!currentUser || !previewIdea || !replyText.trim()) return;
 
-    const newReply: Comment = {
-      id: Date.now().toString(),
-      userId: currentUser.id,
-      userName: currentUser.name,
-      userDepartment: currentUser.department,
-      text: replyText.trim(),
-      createdAt: Date.now(),
-      likes: [],
-      replies: []
-    };
+    try {
+      const newReply = await addReply(previewIdea.id, parentId, replyText.trim());
 
-    const addReplyRecursive = (comments: Comment[]): Comment[] => {
-      return comments.map(c => {
-        if (c.id === parentId) {
-          return { ...c, replies: [...(c.replies || []), newReply] };
-        }
-        if (c.replies && c.replies.length > 0) {
-          return { ...c, replies: addReplyRecursive(c.replies) };
-        }
-        return c;
-      });
-    };
+      const addReplyRecursive = (comments: Comment[]): Comment[] => {
+        return comments.map(c => {
+          if (c.id === parentId) {
+            return { ...c, replies: [...(c.replies || []), newReply] };
+          }
+          if (c.replies && c.replies.length > 0) {
+            return { ...c, replies: addReplyRecursive(c.replies) };
+          }
+          return c;
+        });
+      };
 
-    const updatedComments = addReplyRecursive(previewIdea.comments || []);
-    const updatedIdea = { ...previewIdea, comments: updatedComments };
+      const updatedComments = addReplyRecursive(previewIdea.comments || []);
+      const updatedIdea = { ...previewIdea, comments: updatedComments };
 
-    setIdeas(prev => prev.map(i => i.id === previewIdea.id ? updatedIdea : i));
-    setPreviewIdea(updatedIdea);
-    setReplyText('');
-    setReplyingTo(null);
+      setIdeas(prev => prev.map(i => i.id === previewIdea.id ? updatedIdea : i));
+      setPreviewIdea(updatedIdea);
+      setReplyText('');
+      setReplyingTo(null);
+    } catch (error) {
+      console.error("Failed to add reply", error);
+    }
   };
 
   const visibleIdeas = useMemo(() => {
@@ -428,14 +465,14 @@ const App: React.FC = () => {
     return ideas.filter(idea => {
       const isMine = idea.userId === currentUser.id;
       const isSharedWithMe = idea.isShared && idea.authorDepartment === currentUser.department;
-      
+
       if (!isMine && !isSharedWithMe) return false;
       if (viewMode === 'mine' && !isMine) return false;
       if (viewMode === 'shared' && !isSharedWithMe) return false;
 
-      const matchesSearch = idea.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                            idea.tags.some(t => t.toLowerCase().includes(searchQuery.toLowerCase()));
-      
+      const matchesSearch = idea.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        idea.tags.some(t => t.toLowerCase().includes(searchQuery.toLowerCase()));
+
       const matchesCat = !activeFilter || idea.category === activeFilter;
 
       return matchesSearch && matchesCat;
@@ -536,13 +573,13 @@ const App: React.FC = () => {
             WorkFlow <span className="text-[#fd7912]">AI</span>
           </h1>
         </div>
-        
+
         <div className="flex-1 max-w-md mx-8">
           <div className="relative">
             <i className="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"></i>
-            <input 
-              type="text" 
-              placeholder="Search ideas..." 
+            <input
+              type="text"
+              placeholder="Search ideas..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full bg-slate-900/50 border border-slate-700 rounded-full py-2 pl-12 pr-4 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-[#fd7912] transition-all"
@@ -570,7 +607,7 @@ const App: React.FC = () => {
               <h2 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4 px-2">Operations</h2>
               <ul className="space-y-1">
                 <li>
-                  <button 
+                  <button
                     onClick={() => setActiveTab('capture')}
                     className={`w-full text-left px-4 py-3 rounded-xl transition-all text-sm font-bold flex items-center ${activeTab === 'capture' ? 'bg-[#fd7912] text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'}`}
                   >
@@ -578,7 +615,7 @@ const App: React.FC = () => {
                   </button>
                 </li>
                 <li>
-                  <button 
+                  <button
                     onClick={() => setActiveTab('workspace')}
                     className={`w-full text-left px-4 py-3 rounded-xl transition-all text-sm font-bold flex items-center ${activeTab === 'workspace' ? 'bg-[#fd7912] text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'}`}
                   >
@@ -594,7 +631,7 @@ const App: React.FC = () => {
                   <h2 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4 px-2">View Context</h2>
                   <ul className="space-y-1">
                     <li>
-                      <button 
+                      <button
                         onClick={() => setViewMode('all')}
                         className={`w-full text-left px-4 py-2 rounded-xl transition-all text-xs font-medium ${viewMode === 'all' ? 'text-[#fd7912] bg-[#fd7912]/10' : 'text-slate-400 hover:bg-slate-800'}`}
                       >
@@ -602,7 +639,7 @@ const App: React.FC = () => {
                       </button>
                     </li>
                     <li>
-                      <button 
+                      <button
                         onClick={() => setViewMode('mine')}
                         className={`w-full text-left px-4 py-2 rounded-xl transition-all text-xs font-medium ${viewMode === 'mine' ? 'text-[#fd7912] bg-[#fd7912]/10' : 'text-slate-400 hover:bg-slate-800'}`}
                       >
@@ -610,7 +647,7 @@ const App: React.FC = () => {
                       </button>
                     </li>
                     <li>
-                      <button 
+                      <button
                         onClick={() => setViewMode('shared')}
                         className={`w-full text-left px-4 py-2 rounded-xl transition-all text-xs font-medium ${viewMode === 'shared' ? 'text-[#fd7912] bg-[#fd7912]/10' : 'text-slate-400 hover:bg-slate-800'}`}
                       >
@@ -633,7 +670,7 @@ const App: React.FC = () => {
                     ) : (
                       dynamicCategories.map(cat => (
                         <li key={cat}>
-                          <button 
+                          <button
                             onClick={() => setActiveFilter(cat)}
                             className={`w-full text-left px-3 py-1.5 rounded-lg transition-all text-[11px] font-medium truncate ${activeFilter === cat ? 'bg-[#fd7912]/10 text-[#fd7912] border border-[#fd7912]/30' : 'text-slate-500 hover:bg-slate-800 hover:text-slate-300'}`}
                           >
@@ -671,7 +708,7 @@ const App: React.FC = () => {
                 <p className="text-slate-400 font-medium">Capture text or images. Gemini will automatically organize and contextualize them for you.</p>
               </div>
               <IdeaInput onAdd={handleAddIdea} isAnalyzing={isAnalyzing} />
-              
+
               {ideas.length > 0 && (
                 <div className="mt-12">
                   <h3 className="text-xs font-black text-slate-600 uppercase tracking-widest mb-6 flex items-center">
@@ -680,12 +717,12 @@ const App: React.FC = () => {
                   </h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {ideas.slice(0, 2).map(idea => (
-                      <div key={idea.id} className="glass p-5 rounded-2xl border-slate-800/50 opacity-60 hover:opacity-100 transition-opacity cursor-pointer" onClick={() => {setPreviewIdea(idea); setActiveTab('workspace');}}>
+                      <div key={idea.id} className="glass p-5 rounded-2xl border-slate-800/50 opacity-60 hover:opacity-100 transition-opacity cursor-pointer" onClick={() => { setPreviewIdea(idea); setActiveTab('workspace'); }}>
                         <h4 className="text-sm font-bold text-slate-300 truncate">{idea.title}</h4>
                         <div className="flex items-center mt-2 space-x-2">
-                           <span className="text-[10px] text-[#fd7912] font-black uppercase tracking-wider">{idea.category}</span>
-                           <span className="text-[10px] text-slate-600">•</span>
-                           <span className="text-[10px] text-slate-500">{new Date(idea.createdAt).toLocaleDateString()}</span>
+                          <span className="text-[10px] text-[#fd7912] font-black uppercase tracking-wider">{idea.category}</span>
+                          <span className="text-[10px] text-slate-600">•</span>
+                          <span className="text-[10px] text-slate-500">{new Date(idea.createdAt).toLocaleDateString()}</span>
                         </div>
                       </div>
                     ))}
@@ -708,11 +745,11 @@ const App: React.FC = () => {
               {visibleIdeas.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
                   {visibleIdeas.map(idea => (
-                    <IdeaCard 
-                      key={idea.id} 
-                      idea={idea} 
+                    <IdeaCard
+                      key={idea.id}
+                      idea={idea}
                       currentUserId={currentUser.id}
-                      onDelete={handleDeleteIdea} 
+                      onDelete={handleDeleteIdea}
                       onToggleShare={handleToggleShare}
                       onPreview={setPreviewIdea}
                     />
@@ -727,7 +764,7 @@ const App: React.FC = () => {
                   <p className="text-slate-500 max-w-sm mx-auto text-sm leading-relaxed">
                     Start by capturing a new idea, screenshot, or text snippet. Our AI will handle the organization.
                   </p>
-                  <button 
+                  <button
                     onClick={() => setActiveTab('capture')}
                     className="mt-10 px-10 py-3.5 bg-[#fd7912] text-white text-sm font-black rounded-2xl hover:bg-[#fd7912]/80 transition-all transform hover:-translate-y-0.5"
                   >
@@ -741,13 +778,13 @@ const App: React.FC = () => {
       </div>
 
       {previewIdea && (
-        <div 
+        <div
           className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-8"
           onClick={handleClosePreview}
         >
           <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-md transition-opacity animate-in fade-in duration-300"></div>
-          
-          <div 
+
+          <div
             className="glass relative w-full max-w-7xl max-h-[92vh] overflow-y-auto scrollbar-preview rounded-[2.5rem] shadow-2xl border border-white/10 animate-in zoom-in-95 duration-200 overflow-hidden flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
@@ -769,7 +806,7 @@ const App: React.FC = () => {
               <div className="flex items-center space-x-2">
                 {previewIdea.userId === currentUser.id && (
                   <div className="relative">
-                    <button 
+                    <button
                       onClick={() => setIsSharePopoverOpen(!isSharePopoverOpen)}
                       className="w-12 h-12 flex items-center justify-center rounded-full hover:bg-slate-800 text-slate-400 hover:text-emerald-400 transition-all"
                       title="Link Sharing"
@@ -780,7 +817,7 @@ const App: React.FC = () => {
                       <div className="absolute right-0 top-14 w-64 glass p-6 rounded-2xl border border-white/10 shadow-2xl z-20 animate-in slide-in-from-top-2 duration-200">
                         <h4 className="text-xs font-black uppercase text-slate-500 mb-4 tracking-widest">Link Sharing</h4>
                         {!previewIdea.shareLinkId ? (
-                          <button 
+                          <button
                             onClick={handleGenerateShareLink}
                             className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-black uppercase rounded-lg transition-all"
                           >
@@ -791,13 +828,13 @@ const App: React.FC = () => {
                             <div className="space-y-2">
                               <label className="text-[9px] font-black uppercase text-slate-600">Permission</label>
                               <div className="flex rounded-lg bg-slate-950 p-1 border border-slate-800">
-                                <button 
+                                <button
                                   onClick={() => handleUpdateSharePermission('viewer')}
                                   className={`flex-1 py-1 text-[9px] font-black uppercase rounded ${previewIdea.sharePermission === 'viewer' ? 'bg-slate-800 text-emerald-400' : 'text-slate-500'}`}
                                 >
                                   Viewer
                                 </button>
-                                <button 
+                                <button
                                   onClick={() => handleUpdateSharePermission('editor')}
                                   className={`flex-1 py-1 text-[9px] font-black uppercase rounded ${previewIdea.sharePermission === 'editor' ? 'bg-slate-800 text-emerald-400' : 'text-slate-500'}`}
                                 >
@@ -805,7 +842,7 @@ const App: React.FC = () => {
                                 </button>
                               </div>
                             </div>
-                            <button 
+                            <button
                               onClick={handleCopyShareLink}
                               className={`w-full py-2 text-[10px] font-black uppercase rounded-lg transition-all flex items-center justify-center space-x-2 ${linkCopied ? 'bg-emerald-500 text-white' : 'bg-slate-800 hover:bg-slate-700 text-slate-300'}`}
                             >
@@ -822,14 +859,14 @@ const App: React.FC = () => {
                   </div>
                 )}
                 {canEdit && !isEditing && (
-                  <button 
+                  <button
                     onClick={handleStartEdit}
                     className="w-12 h-12 flex items-center justify-center rounded-full hover:bg-slate-800 text-slate-400 hover:text-[#fd7912] transition-all"
                   >
                     <i className="fas fa-edit text-xl"></i>
                   </button>
                 )}
-                <button 
+                <button
                   onClick={handleClosePreview}
                   className="w-12 h-12 flex items-center justify-center rounded-full hover:bg-slate-800 text-slate-400 hover:text-white transition-all transform hover:rotate-90"
                 >
@@ -844,7 +881,7 @@ const App: React.FC = () => {
                   {previewIdea.title}
                 </h1>
                 <div className="flex items-center space-x-6">
-                   <div className="flex items-center space-x-3">
+                  <div className="flex items-center space-x-3">
                     <div className="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-sm font-bold text-slate-300">
                       {previewIdea.authorName.substring(0, 2).toUpperCase()}
                     </div>
@@ -869,7 +906,7 @@ const App: React.FC = () => {
                         {editImages.map((src, idx) => (
                           <div key={idx} className="relative group w-32 h-32">
                             <img src={src} className="rounded-xl object-cover w-full h-full border border-slate-700" />
-                            <button 
+                            <button
                               onClick={() => setEditImages(prev => prev.filter((_, i) => i !== idx))}
                               className="absolute -top-2 -right-2 w-8 h-8 bg-red-500 rounded-full flex items-center justify-center text-white shadow-xl opacity-0 group-hover:opacity-100 transition-opacity"
                             >
@@ -877,7 +914,7 @@ const App: React.FC = () => {
                             </button>
                           </div>
                         ))}
-                        <button 
+                        <button
                           onClick={() => editFileInputRef.current?.click()}
                           className="w-32 h-32 rounded-xl border-2 border-dashed border-slate-700 flex flex-col items-center justify-center text-slate-600 hover:text-[#fd7912] hover:border-[#fd7912] transition-all"
                         >
@@ -903,7 +940,7 @@ const App: React.FC = () => {
                           <button onClick={() => document.execCommand('formatBlock', false, 'h2')} className="w-8 h-8 rounded hover:bg-slate-700 text-slate-300 transition-colors font-bold">H</button>
                           <button onClick={() => document.execCommand('insertUnorderedList')} className="w-8 h-8 rounded hover:bg-slate-700 text-slate-300 transition-colors"><i className="fas fa-list-ul"></i></button>
                         </div>
-                        <div 
+                        <div
                           ref={editEditorRef}
                           contentEditable
                           dangerouslySetInnerHTML={{ __html: editContent }}
@@ -911,7 +948,7 @@ const App: React.FC = () => {
                         />
                       </div>
                     ) : (
-                      <div 
+                      <div
                         className="prose prose-invert max-w-none text-slate-200 leading-relaxed text-base xl:text-lg font-normal preview-content"
                         dangerouslySetInnerHTML={{ __html: previewIdea.content || (previewIdea.imageDatas && previewIdea.imageDatas.length > 0 ? "Visual inputs captured." : "No text description.") }}
                       />
@@ -940,14 +977,14 @@ const App: React.FC = () => {
                         {(previewIdea.userId === currentUser.id || (previewIdea.isShared && previewIdea.authorDepartment === currentUser.department) || previewIdea.sharePermission === 'editor') ? (
                           <form onSubmit={handleAddComment} className="mb-8">
                             <div className="relative group">
-                              <textarea 
+                              <textarea
                                 value={commentText}
                                 onChange={(e) => setCommentText(e.target.value)}
                                 placeholder="Add a thought..."
                                 className="w-full bg-slate-950/50 border border-slate-800 rounded-2xl p-4 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-[#fd7912]/50 transition-all resize-none min-h-[100px]"
                                 required
                               />
-                              <button 
+                              <button
                                 type="submit"
                                 disabled={!commentText.trim()}
                                 className="absolute bottom-3 right-3 px-6 py-2 bg-[#fd7912] hover:bg-[#fd7912]/80 text-white text-xs font-bold rounded-xl transition-all shadow-lg shadow-[#fd7912]/20 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -964,10 +1001,10 @@ const App: React.FC = () => {
                           {previewIdea.comments && previewIdea.comments.length > 0 ? (
                             <>
                               {rootComments.map(comment => (
-                                <CommentItem 
-                                  key={comment.id} 
-                                  comment={comment} 
-                                  depth={0} 
+                                <CommentItem
+                                  key={comment.id}
+                                  comment={comment}
+                                  depth={0}
                                   currentUserId={currentUser.id}
                                   replyingTo={replyingTo}
                                   setReplyingTo={setReplyingTo}
@@ -977,9 +1014,9 @@ const App: React.FC = () => {
                                   onAddReply={handleAddReply}
                                 />
                               ))}
-                              
+
                               {hiddenRootCount > 0 && !showAllRootComments && (
-                                <button 
+                                <button
                                   onClick={() => setShowAllRootComments(true)}
                                   className="mt-4 w-full py-3 rounded-2xl border border-slate-800 bg-slate-900/40 text-xs font-bold text-[#fd7912] hover:bg-slate-800 transition-all flex items-center justify-center space-x-2"
                                 >
@@ -1005,13 +1042,13 @@ const App: React.FC = () => {
             <div className="p-8 border-t border-slate-800 flex justify-end space-x-4 sticky bottom-0 bg-slate-900/95 backdrop-blur-xl z-10">
               {isEditing ? (
                 <>
-                  <button 
+                  <button
                     onClick={() => setIsEditing(false)}
                     className="px-8 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-2xl text-sm font-black transition-all border border-slate-700"
                   >
                     Cancel
                   </button>
-                  <button 
+                  <button
                     onClick={handleSaveEdit}
                     disabled={isAnalyzing}
                     className="px-8 py-3 bg-[#fd7912] hover:bg-[#fd7912]/80 text-white rounded-2xl text-sm font-black transition-all shadow-xl shadow-[#fd7912]/20 disabled:opacity-50"
@@ -1022,18 +1059,17 @@ const App: React.FC = () => {
               ) : (
                 <>
                   {previewIdea.userId === currentUser.id && (
-                    <button 
+                    <button
                       onClick={() => handleToggleShare(previewIdea.id)}
-                      className={`px-8 py-3 rounded-2xl text-sm font-black transition-all shadow-xl ${
-                        previewIdea.isShared 
-                          ? 'bg-slate-700 hover:bg-slate-600 text-slate-300' 
-                          : 'bg-[#fd7912] hover:bg-[#fd7912]/80 text-white shadow-[#fd7912]/20'
-                      }`}
+                      className={`px-8 py-3 rounded-2xl text-sm font-black transition-all shadow-xl ${previewIdea.isShared
+                        ? 'bg-slate-700 hover:bg-slate-600 text-slate-300'
+                        : 'bg-[#fd7912] hover:bg-[#fd7912]/80 text-white shadow-[#fd7912]/20'
+                        }`}
                     >
                       {previewIdea.isShared ? <><i className="fas fa-lock mr-2"></i> Unshare</> : <><i className="fas fa-share mr-2"></i> Share with {currentUser.department}</>}
                     </button>
                   )}
-                  <button 
+                  <button
                     onClick={handleClosePreview}
                     className="px-8 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-2xl text-sm font-black transition-all border border-slate-700"
                   >

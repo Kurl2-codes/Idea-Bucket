@@ -32,9 +32,17 @@ export interface Idea {
 }
 
 export interface IdeaAnalysis {
+  id?: string;
   title: string;
   category: string;
   tags: string[];
+  userId?: string;
+  authorName?: string;
+  authorDepartment?: string;
+  isShared?: boolean;
+  content?: string;
+  image_urls?: string[];
+  createdAt?: number;
 }
 
 export interface User {
